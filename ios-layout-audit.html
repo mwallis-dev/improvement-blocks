@@ -1,0 +1,966 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>iOS layout audit — My Golf Season dashboard</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #0b0b0c;
+      --panel: #161618;
+      --panel-2: #1c1c1e;
+      --text: #f5f5f7;
+      --muted: #a1a1a6;
+      --faint: #6e6e73;
+      --line: rgba(255,255,255,.1);
+      --pass: #30d158;
+      --near: #ffd60a;
+      --miss: #ff453a;
+      --info: #64d2ff;
+      --apple: #0a84ff;
+      --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif;
+      --display: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Helvetica Neue", sans-serif;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font: 17px/1.47 var(--font);
+      -webkit-font-smoothing: antialiased;
+    }
+    a { color: var(--apple); }
+    .wrap { max-width: 980px; margin: 0 auto; padding: 28px 20px 80px; }
+    header.hero-doc {
+      padding: 12px 0 28px;
+      border-bottom: 1px solid var(--line);
+      margin-bottom: 28px;
+    }
+    header.hero-doc p.kicker {
+      margin: 0 0 8px;
+      color: var(--faint);
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+    }
+    h1 {
+      margin: 0;
+      font-family: var(--display);
+      font-size: 34px;
+      font-weight: 700;
+      letter-spacing: -.02em;
+      line-height: 41px;
+    }
+    .lede {
+      max-width: 42em;
+      margin: 16px 0 0;
+      color: var(--muted);
+    }
+    nav.toc {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+      gap: 8px;
+      margin: 24px 0 0;
+    }
+    nav.toc a {
+      display: block;
+      padding: 10px 12px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: var(--panel);
+      color: var(--text);
+      text-decoration: none;
+      font-size: 15px;
+    }
+    h2 {
+      margin: 48px 0 12px;
+      font-family: var(--display);
+      font-size: 28px;
+      font-weight: 700;
+      letter-spacing: -.02em;
+      line-height: 34px;
+    }
+    h3 {
+      margin: 28px 0 8px;
+      font-family: var(--display);
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: -.018em;
+      line-height: 28px;
+    }
+    h4 {
+      margin: 20px 0 8px;
+      font-size: 17px;
+      font-weight: 600;
+    }
+    p, li { color: #e8e8ed; }
+    .muted { color: var(--muted); }
+    .note {
+      padding: 14px 16px;
+      border-left: 3px solid var(--info);
+      background: rgba(100, 210, 255, .08);
+      border-radius: 0 12px 12px 0;
+      color: var(--muted);
+    }
+    .score-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin: 20px 0;
+    }
+    .score {
+      padding: 16px;
+      border-radius: 14px;
+      background: var(--panel);
+      border: 1px solid var(--line);
+    }
+    .score strong { display: block; font-size: 28px; line-height: 34px; letter-spacing: -.02em; }
+    .score span { color: var(--muted); font-size: 15px; }
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      min-height: 22px;
+      padding: 2px 8px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: .01em;
+      vertical-align: middle;
+    }
+    .pill.pass { background: rgba(48,209,88,.18); color: var(--pass); }
+    .pill.near { background: rgba(255,214,10,.16); color: #ffd60a; }
+    .pill.miss { background: rgba(255,69,58,.18); color: #ff6961; }
+    .pill.ref { background: rgba(10,132,255,.18); color: #7ab8ff; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14px;
+      line-height: 1.35;
+      background: var(--panel);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+    th, td {
+      padding: 10px 12px;
+      text-align: left;
+      border-bottom: 1px solid var(--line);
+      vertical-align: top;
+    }
+    th { color: var(--muted); font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
+    tr:last-child td { border-bottom: 0; }
+    td.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; color: #d2d2d7; }
+    .tree {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 16px 18px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 12.5px;
+      line-height: 1.55;
+      overflow-x: auto;
+      color: #d2d2d7;
+    }
+    .tree .ok { color: var(--pass); }
+    .tree .warn { color: var(--near); }
+    .tree .bad { color: #ff6961; }
+    .compare {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+    @media (max-width: 720px) {
+      .score-row, .compare { grid-template-columns: 1fr; }
+      h1 { font-size: 28px; line-height: 34px; }
+    }
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 16px;
+    }
+    .scale {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .scale-row {
+      display: grid;
+      grid-template-columns: 110px 1fr 72px;
+      gap: 10px;
+      align-items: center;
+    }
+    .bar {
+      height: 28px;
+      border-radius: 6px;
+      background: #2c2c2e;
+      position: relative;
+    }
+    .bar > i {
+      display: block;
+      height: 100%;
+      border-radius: 6px;
+      background: #3a3a3c;
+    }
+    .bar.ios > i { background: var(--apple); }
+    .bar.app > i { background: #bf5af2; }
+    .type-sample {
+      margin: 0;
+      color: var(--text);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .ruler {
+      display: grid;
+      grid-template-columns: repeat(20, 1fr);
+      height: 24px;
+      margin: 8px 0 4px;
+      border-radius: 4px;
+      overflow: hidden;
+    }
+    .ruler span { background: #2c2c2e; }
+    .ruler span:nth-child(even) { background: #3a3a3c; }
+    .ruler span:nth-child(4n) { background: #48484a; }
+    .spec-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 10px;
+    }
+    .spec-grid div {
+      background: var(--panel-2);
+      border-radius: 12px;
+      padding: 12px;
+      border: 1px solid var(--line);
+    }
+    .spec-grid small { display: block; color: var(--faint); font-size: 12px; margin-bottom: 4px; }
+    .phone {
+      width: 390px;
+      max-width: 100%;
+      margin: 0 auto;
+      background: #000;
+      border: 1px solid var(--line);
+      border-radius: 20px;
+      overflow: hidden;
+      position: relative;
+    }
+    .phone .guide {
+      pointer-events: none;
+      position: absolute;
+      inset: 0;
+      border-left: 16px solid rgba(10,132,255,.18);
+      border-right: 16px solid rgba(10,132,255,.18);
+      z-index: 2;
+    }
+    .phone .inner { padding: 48px 16px 32px; font-size: 13px; color: var(--muted); }
+    .finding { margin: 0 0 14px; padding-bottom: 14px; border-bottom: 1px solid var(--line); }
+    .finding:last-child { border-bottom: 0; margin: 0; padding: 0; }
+    footer { margin-top: 48px; color: var(--faint); font-size: 13px; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header class="hero-doc">
+      <p class="kicker">Design audit · 10 September 2026</p>
+      <h1>Dashboard vs iOS design system</h1>
+      <p class="lede">
+        Review of <a href="index.html">index.html</a> against Apple’s Human Interface Guidelines
+        for iPhone: layout margins, the 4-point spacing grid, Dynamic Type (Large / default),
+        and padding conventions used by UIKit / SwiftUI.
+      </p>
+      <p class="lede">
+        Scope is layout, grid, type size, spacing, and padding only. Colour, shaders, copy, and product rules are out of scope except where they change space (full-bleed hero, safe area).
+      </p>
+      <nav class="toc" aria-label="Sections">
+        <a href="#summary">1. Summary</a>
+        <a href="#reference">2. iOS reference</a>
+        <a href="#layout">3. Layout</a>
+        <a href="#grid">4. Grid</a>
+        <a href="#type">5. Typography</a>
+        <a href="#space">6. Spacing &amp; padding</a>
+        <a href="#components">7. Components</a>
+        <a href="#map">8. Token map</a>
+        <a href="#fix">9. What to change</a>
+      </nav>
+    </header>
+
+    <section id="summary">
+      <h2>1. Summary</h2>
+      <p>
+        The dashboard is already thinking in iOS terms: 16pt page margins, an 8pt spacing scale,
+        SF-style system fonts, dark grouped cards, and safe-area insets. It is closer to
+        <strong>Fitness / Health</strong> (stacked metric cards) than to a UIKit inset-grouped list.
+        The misses are almost all <em>off-scale type sizes</em> and a few radii that are not on the 4pt grid.
+      </p>
+
+      <div class="score-row">
+        <div class="score">
+          <strong>Layout</strong>
+          <span>Margins and safe area match iPhone compact. Canvas is locked to 390pt.</span>
+        </div>
+        <div class="score">
+          <strong>Grid / space</strong>
+          <span>8pt rhythm is consistent. 7pt chip radius and 30pt goal-card radius are off-grid.</span>
+        </div>
+        <div class="score">
+          <strong>Type</strong>
+          <span>Hierarchy is clear, but sizes sit between HIG styles (36, 26, 18, 16 vs 34, 28/22, 17).</span>
+        </div>
+      </div>
+
+      <div class="note">
+        <strong style="color:var(--text)">How to read verdicts.</strong>
+        <span class="pill pass">Match</span> uses an HIG value (or the 4pt grid).
+        <span class="pill near">Near</span> is within 1–2pt or a neighbouring text style.
+        <span class="pill miss">Miss</span> is off the type scale, off the 4pt grid, or fights a layout rule (Dynamic Type, 44pt controls).
+        Comparison assumes <span class="mono">1 CSS px = 1 iOS pt</span> on a 1× logical canvas, which is the usual web-to-iPhone mapping. Root font size is the browser default 16px, so <span class="mono">1rem = 16pt</span>.
+      </div>
+    </section>
+
+    <section id="reference">
+      <h2>2. iOS reference used</h2>
+      <p class="muted">Sources: Apple HIG Layout and Typography (iOS / iPadOS, Dynamic Type size <strong>Large</strong>, the system default).</p>
+
+      <h3>Layout rules</h3>
+      <div class="spec-grid">
+        <div><small>iPhone compact margins</small><strong>16pt</strong> leading &amp; trailing</div>
+        <div><small>Regular width (iPad / landscape+)</small><strong>20pt</strong> system minimum</div>
+        <div><small>Safe area</small><strong>Must clear</strong> status bar / Dynamic Island / home indicator</div>
+        <div><small>Full-bleed</small><strong>Background only</strong> — content stays in margins</div>
+        <div><small>Hit target</small><strong>44 × 44pt</strong> minimum for controls</div>
+        <div><small>Spacing grid</small><strong>4pt</strong> base (8, 12, 16, 20, 24, 32 common)</div>
+        <div><small>Readable width</small><strong>readableContentGuide</strong> (~672pt max), not a 12-col grid</div>
+        <div><small>Stack rhythm</small><strong>8pt</strong> inside a group, <strong>16–24pt</strong> between groups, <strong>~32–35pt</strong> between sections</div>
+      </div>
+
+      <h3>Dynamic Type — Large (default)</h3>
+      <p class="muted">Point size / leading. Regular weight unless noted. Emphasized column is what Mail / Fitness use for titles.</p>
+      <table>
+        <thead>
+          <tr><th>Style</th><th>Size</th><th>Leading</th><th>Default weight</th><th>Emphasized</th><th>Use</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Large Title</td><td class="num">34</td><td class="num">41</td><td>Regular</td><td>Bold</td><td>Screen title</td></tr>
+          <tr><td>Title 1</td><td class="num">28</td><td class="num">34</td><td>Regular</td><td>Bold</td><td>Primary heading</td></tr>
+          <tr><td>Title 2</td><td class="num">22</td><td class="num">28</td><td>Regular</td><td>Bold</td><td>Section heading</td></tr>
+          <tr><td>Title 3</td><td class="num">20</td><td class="num">25</td><td>Regular</td><td>Semibold</td><td>Card title / nested heading</td></tr>
+          <tr><td>Headline</td><td class="num">17</td><td class="num">22</td><td>Semibold</td><td>Semibold</td><td>Emphasized body / row title</td></tr>
+          <tr><td>Body</td><td class="num">17</td><td class="num">22</td><td>Regular</td><td>Semibold</td><td>Paragraphs</td></tr>
+          <tr><td>Callout</td><td class="num">16</td><td class="num">21</td><td>Regular</td><td>Semibold</td><td>Secondary paragraph</td></tr>
+          <tr><td>Subhead</td><td class="num">15</td><td class="num">20</td><td>Regular</td><td>Semibold</td><td>Supporting line</td></tr>
+          <tr><td>Footnote</td><td class="num">13</td><td class="num">18</td><td>Regular</td><td>Semibold</td><td>Section header / meta</td></tr>
+          <tr><td>Caption 1</td><td class="num">12</td><td class="num">16</td><td>Regular</td><td>Semibold</td><td>Tiny labels, chips</td></tr>
+          <tr><td>Caption 2</td><td class="num">11</td><td class="num">13</td><td>Regular</td><td>Semibold</td><td>Least emphasis</td></tr>
+        </tbody>
+      </table>
+      <p class="muted">
+        SF Pro Text is for sizes below 20pt. SF Pro Display is for 20pt and above (tighter tracking).
+        Tracking is size-specific in the HIG tables — not a single <span class="mono">letter-spacing</span> on every heading.
+      </p>
+    </section>
+
+    <section id="layout">
+      <h2>3. Layout</h2>
+      <p>
+        iOS does not use a 12-column grid. A phone screen is a vertical stack: 16pt margins,
+        full-bleed backgrounds, and optional 2-column <span class="mono">LazyVGrid</span> / widget rows with 8–16pt gutters.
+        That is exactly the skeleton here.
+      </p>
+
+      <h3>Canvas</h3>
+      <table>
+        <thead><tr><th>Dashboard</th><th>Value</th><th>iOS</th><th>Verdict</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><span class="mono">.dashboard max-width</span></td>
+            <td class="num">390px</td>
+            <td>iPhone 14 / 15 logical width is 390pt. iPhone 16 Pro is 402; Pro Max is 440.</td>
+            <td><span class="pill near">Near</span></td>
+          </tr>
+          <tr>
+            <td>Page horizontal pad</td>
+            <td class="num">16px (--page-pad)</td>
+            <td>Compact layout margin 16pt</td>
+            <td><span class="pill pass">Match</span></td>
+          </tr>
+          <tr>
+            <td>Centred column on desktop</td>
+            <td>margin 0 auto, black page around a phone canvas</td>
+            <td>On iPhone the canvas is the screen. Fine as a web mock.</td>
+            <td><span class="pill pass">Match</span></td>
+          </tr>
+          <tr>
+            <td>Regular-width / iPad</td>
+            <td>Still 390 centred</td>
+            <td>Margins become 20pt; content should grow, not stay a phone postcard</td>
+            <td><span class="pill miss">Miss</span></td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>Safe area</h3>
+      <table>
+        <thead><tr><th>Edge</th><th>Dashboard</th><th>iOS typical</th><th>Verdict</th></tr></thead>
+        <tbody>
+          <tr>
+            <td>Top</td>
+            <td class="num">max(56px, env(safe-area-inset-top)) on .season-intro</td>
+            <td>Status bar ~47pt (notch) or ~54–62pt (Dynamic Island). Content must sit below that. Extra padding for a large title is normal.</td>
+            <td><span class="pill pass">Match</span></td>
+          </tr>
+          <tr>
+            <td>Bottom</td>
+            <td class="num">max(40px, env(safe-area-inset-bottom))</td>
+            <td>Home indicator inset 34pt. 40pt of page padding is enough if there is no tab bar.</td>
+            <td><span class="pill pass">Match</span></td>
+          </tr>
+          <tr>
+            <td>Hero background</td>
+            <td>Full-bleed (negative horizontal margin equal to page pad)</td>
+            <td>Correct: backgrounds ignore margins; text stays on the 16pt inset</td>
+            <td><span class="pill pass">Match</span></td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>Vertical structure</h3>
+      <p>One column: hero → goals → history. That matches a scroll view of stacked sections, not a dashboard widget board.</p>
+      <div class="tree">
+        page (full viewport)<br>
+        └─ dashboard (390 × 100svh)<br>
+        &nbsp;&nbsp;&nbsp;└─ dashboard-content<br>
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;pad: 0 16 bottom max(40, home-indicator)<br>
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;├─ hero (full-bleed, 16pt content inset)<br>
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;│&nbsp;&nbsp;&nbsp;├─ season-intro <span class="ok">pad 56/16/32, min-height 192</span><br>
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;│&nbsp;&nbsp;&nbsp;├─ season-progress <span class="ok">full-bleed bar, pad 8/16, min-height 48</span><br>
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;│&nbsp;&nbsp;&nbsp;└─ season-summary <span class="ok">pad 16/16/32</span><br>
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;├─ section.goals <span class="ok">padding-top 32</span><br>
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;│&nbsp;&nbsp;&nbsp;├─ heading (16 below)<br>
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;│&nbsp;&nbsp;&nbsp;└─ 2-col grid, gap 16<br>
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;└─ section.history <span class="ok">padding-top 32</span><br>
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;└─ 1-col list, gap 16
+      </div>
+
+      <h3>16pt margin overlay (conceptual)</h3>
+      <p class="muted">Blue bands are the iOS compact layout margins. All text and cards should sit inside them; only the shader, hero wash, and progress fill should reach the edges.</p>
+      <div class="phone" aria-hidden="true">
+        <div class="guide"></div>
+        <div class="inner">
+          <div style="height:8px"></div>
+          <div style="font:700 22px/1.1 var(--display);color:#fff">7 September</div>
+          <div style="margin-top:8px;font-size:11px;letter-spacing:.04em;text-transform:uppercase">meta · 16pt from edge</div>
+          <div style="margin:24px -16px;padding:12px 16px;background:rgba(255,255,255,.08)">weeks-left bar is full-bleed — correct</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:8px">
+            <div style="height:88px;border-radius:16px;background:#1c1c1e;border:1px solid rgba(255,255,255,.1)"></div>
+            <div style="height:88px;border-radius:16px;background:#1c1c1e;border:1px solid rgba(255,255,255,.1)"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="grid">
+      <h2>4. Grid</h2>
+      <p>
+        Apple aligns to a <strong>4pt</strong> grid so every value is an integer at 2× and 3×.
+        The dashboard’s tokens are an 8pt subset of that grid, which is the right idea.
+      </p>
+
+      <h3>Spacing tokens</h3>
+      <table>
+        <thead><tr><th>Token</th><th>px</th><th>4pt grid</th><th>Typical iOS use</th></tr></thead>
+        <tbody>
+          <tr><td class="mono">--space-1</td><td class="num">8</td><td><span class="pill pass">Match</span></td><td>Tight grouping, chip gap, icon-to-label</td></tr>
+          <tr><td class="mono">--space-2 / --page-pad</td><td class="num">16</td><td><span class="pill pass">Match</span></td><td>Screen margin, card padding, grid gap</td></tr>
+          <tr><td class="mono">--space-3</td><td class="num">24</td><td><span class="pill pass">Match</span></td><td>Chip min-height (a bit short — see components)</td></tr>
+          <tr><td class="mono">--space-4</td><td class="num">32</td><td><span class="pill pass">Match</span></td><td>Section padding, card min-height building block</td></tr>
+          <tr><td class="mono">--space-5</td><td class="num">40</td><td><span class="pill pass">Match</span></td><td>Bottom page pad (between 32 and 44)</td></tr>
+          <tr><td class="mono">--space-6</td><td class="num">48</td><td><span class="pill pass">Match</span></td><td>Progress min-height; intro min-height = 192 (4×48)</td></tr>
+        </tbody>
+      </table>
+
+      <h3>Off-grid values in CSS</h3>
+      <table>
+        <thead><tr><th>Where</th><th>Value</th><th>Nearest grid</th><th>Verdict</th></tr></thead>
+        <tbody>
+          <tr><td>.goal-metric gap; .round-course margin-bottom; chip padding-block</td><td class="num">4px</td><td>4 — valid micro gap</td><td><span class="pill pass">Match</span></td></tr>
+          <tr><td>.round-chip border-radius</td><td class="num">7px</td><td>8</td><td><span class="pill miss">Miss</span></td></tr>
+          <tr><td>.goal-card border-radius</td><td class="num">30px</td><td>28 (--radius-lg) or 32</td><td><span class="pill miss">Miss</span></td></tr>
+          <tr><td>.round-card radius</td><td class="num">28px</td><td>On grid; larger than UIKit cell (~10–14) but Fitness-like</td><td><span class="pill near">Near</span></td></tr>
+          <tr><td>--radius-md</td><td class="num">24px</td><td>On grid, unused</td><td><span class="pill pass">Match</span></td></tr>
+          <tr><td>Stroke width on goal SVG</td><td class="num">2.8</td><td>Not a layout token; fine</td><td><span class="pill pass">Match</span></td></tr>
+        </tbody>
+      </table>
+
+      <h3>Content grid</h3>
+      <div class="compare">
+        <div class="card">
+          <h4>Goals — 2 columns</h4>
+          <p class="muted">
+            <span class="mono">repeat(2, minmax(0, 1fr))</span> · gap 16.<br>
+            At 390 − 32 = 358 content width → two 171pt columns.
+            Inner pad 16 + 32 status column + 8 gap leaves ~115pt for the metric — tight for “L11 yd” at 36pt.
+          </p>
+          <p><span class="pill pass">Match</span> iOS widget / Fitness dual metric row.</p>
+        </div>
+        <div class="card">
+          <h4>History — 1 column</h4>
+          <p class="muted">
+            Stacked cards, gap 16, each min-height 128, pad 16.
+            This is a custom card stack, not UITableView inset grouped (which would use 10–12pt continuous corners and hairline separators).
+          </p>
+          <p><span class="pill near">Near</span> valid custom layout; not the system list.</p>
+        </div>
+      </div>
+
+      <h4>4pt ruler (80pt shown)</h4>
+      <div class="ruler" aria-hidden="true">
+        <span></span><span></span><span></span><span></span>
+        <span></span><span></span><span></span><span></span>
+        <span></span><span></span><span></span><span></span>
+        <span></span><span></span><span></span><span></span>
+        <span></span><span></span><span></span><span></span>
+      </div>
+      <p class="muted">Each tick = 4pt. Dashboard tokens land on 8, 16, 24, 32, 40, 48. Exceptions: 7 and 30.</p>
+    </section>
+
+    <section id="type">
+      <h2>5. Typography sizing</h2>
+      <p>
+        Hierarchy is readable, but four of seven used sizes are not HIG text styles.
+        iOS apps look “native” largely because they only use those eleven styles (then scale them with Dynamic Type).
+      </p>
+
+      <h3>Token → px → nearest HIG style</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>Token / use</th>
+            <th>Specified</th>
+            <th>Computed</th>
+            <th>Weight / tracking / leading</th>
+            <th>Nearest HIG</th>
+            <th>Verdict</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>hero-date (h1)</td>
+            <td class="mono">--type-primary-heading 2.25rem</td>
+            <td class="num">36pt</td>
+            <td>700 · -0.035em · 1.12 → ~40.3pt</td>
+            <td>Large Title 34 / leading 41 / Bold</td>
+            <td><span class="pill near">Near</span></td>
+          </tr>
+          <tr>
+            <td>section-title (h2)</td>
+            <td class="mono">--type-section-heading 1.625rem</td>
+            <td class="num">26pt</td>
+            <td>600 · -0.02em · 1.15 → ~30pt</td>
+            <td>Title 1 28 / 34 or Title 2 22 / 28. 26 sits in the gap.</td>
+            <td><span class="pill miss">Miss</span></td>
+          </tr>
+          <tr>
+            <td>season-progress h2</td>
+            <td class="mono">--type-card-label 1.125rem</td>
+            <td class="num">18pt</td>
+            <td>700 · -0.025em · 1.2 → ~21.6pt</td>
+            <td>Headline 17 / 22 Semibold, or Title 3 20</td>
+            <td><span class="pill miss">Miss</span></td>
+          </tr>
+          <tr>
+            <td>season-summary p</td>
+            <td class="mono">--type-body 1rem</td>
+            <td class="num">16pt</td>
+            <td>400 · -0.005em · 1.375 → 22pt</td>
+            <td>Body is 17 / 22. Leading accidentally matches Body; size is Callout.</td>
+            <td><span class="pill near">Near</span></td>
+          </tr>
+          <tr>
+            <td>goal-content h3, .goal-support, unit</td>
+            <td class="mono">--type-body 1rem</td>
+            <td class="num">16pt</td>
+            <td>400 · -0.018em · 1.12 → ~18pt</td>
+            <td>Callout 16 / 21. Leading is too tight for Callout/Body (should be ~21).</td>
+            <td><span class="pill near">Near</span></td>
+          </tr>
+          <tr>
+            <td>goal-metric</td>
+            <td class="mono">--type-card-metric 2.25rem</td>
+            <td class="num">36pt</td>
+            <td>600 · -0.025em · 1.0 → 36pt</td>
+            <td>Large Title 34 / 41. Line-height 1.0 will clip if a glyph has descent; HIG leading is 41.</td>
+            <td><span class="pill near">Near</span></td>
+          </tr>
+          <tr>
+            <td>round-course</td>
+            <td class="mono">--type-card-label 1.125rem</td>
+            <td class="num">18pt</td>
+            <td>600 · -0.018em · 1.2</td>
+            <td>Headline 17 or Title 3 20</td>
+            <td><span class="pill miss">Miss</span></td>
+          </tr>
+          <tr>
+            <td>recovery-summary, round-detail</td>
+            <td class="mono">--type-secondary-data .9375rem</td>
+            <td class="num">15pt</td>
+            <td>400 · 1.3 → 19.5pt</td>
+            <td>Subhead 15 / 20</td>
+            <td><span class="pill pass">Match</span></td>
+          </tr>
+          <tr>
+            <td>recovery-data, section-note, chips</td>
+            <td class="mono">--type-metadata .75rem</td>
+            <td class="num">12pt</td>
+            <td>500 · +0.04em · 1.4 · uppercase (labels)</td>
+            <td>Caption 1 12 / 16. iOS 15+ section headers are Footnote 13, title case — not all-caps.</td>
+            <td><span class="pill near">Near</span></td>
+          </tr>
+          <tr>
+            <td>--type-display-metric</td>
+            <td class="mono">5.5rem</td>
+            <td class="num">88pt</td>
+            <td>Unused in the page</td>
+            <td>No HIG text style this large (Activity rings use custom display numbers)</td>
+            <td><span class="pill ref">Unused</span></td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>Size bars (pt)</h3>
+      <div class="card scale">
+        <div class="scale-row"><span class="muted">HIG Large Title</span><div class="bar ios"><i style="width:34%"></i></div><span class="num">34</span></div>
+        <div class="scale-row"><span class="muted">App hero / metric</span><div class="bar app"><i style="width:36%"></i></div><span class="num">36</span></div>
+        <div class="scale-row"><span class="muted">HIG Title 1</span><div class="bar ios"><i style="width:28%"></i></div><span class="num">28</span></div>
+        <div class="scale-row"><span class="muted">App section title</span><div class="bar app"><i style="width:26%"></i></div><span class="num">26</span></div>
+        <div class="scale-row"><span class="muted">HIG Title 2</span><div class="bar ios"><i style="width:22%"></i></div><span class="num">22</span></div>
+        <div class="scale-row"><span class="muted">HIG Title 3</span><div class="bar ios"><i style="width:20%"></i></div><span class="num">20</span></div>
+        <div class="scale-row"><span class="muted">App card label</span><div class="bar app"><i style="width:18%"></i></div><span class="num">18</span></div>
+        <div class="scale-row"><span class="muted">HIG Body</span><div class="bar ios"><i style="width:17%"></i></div><span class="num">17</span></div>
+        <div class="scale-row"><span class="muted">App body</span><div class="bar app"><i style="width:16%"></i></div><span class="num">16</span></div>
+        <div class="scale-row"><span class="muted">HIG Subhead / app secondary</span><div class="bar ios"><i style="width:15%"></i></div><span class="num">15</span></div>
+        <div class="scale-row"><span class="muted">HIG Caption 1 / app meta</span><div class="bar ios"><i style="width:12%"></i></div><span class="num">12</span></div>
+      </div>
+      <p class="muted">Blue = iOS. Purple = dashboard. The purple bars that do not land on a blue bar are the type-scale misses.</p>
+
+      <h3>Live samples at dashboard sizes vs HIG</h3>
+      <div class="compare">
+        <div class="card">
+          <p class="muted">Dashboard</p>
+          <p class="type-sample" style="font:700 36px/1.12 var(--display);letter-spacing:-.035em">7 September</p>
+          <p class="type-sample" style="font:600 26px/1.15 var(--display);letter-spacing:-.02em;margin-top:8px">Improvement block</p>
+          <p class="type-sample" style="font:400 16px/1.375 var(--font);margin-top:8px">Body at 16 / 22</p>
+          <p class="type-sample" style="font:600 36px/1 var(--display);margin-top:8px">L11 <span style="font:400 16px/1 var(--font)">yd</span></p>
+        </div>
+        <div class="card">
+          <p class="muted">iOS Large (emphasized titles)</p>
+          <p class="type-sample" style="font:700 34px/41px var(--display)">7 September</p>
+          <p class="type-sample" style="font:700 28px/34px var(--display);margin-top:8px">Improvement block</p>
+          <p class="type-sample" style="font:400 17px/22px var(--font);margin-top:8px">Body at 17 / 22</p>
+          <p class="type-sample" style="font:700 34px/41px var(--display);margin-top:8px">L11 <span style="font:400 17px/22px var(--font)">yd</span></p>
+        </div>
+      </div>
+
+      <h3>Type system issues beyond size</h3>
+      <div class="card">
+        <div class="finding">
+          <span class="pill miss">Miss</span>
+          <strong> No Dynamic Type.</strong>
+          Sizes are rem/px locked. <span class="mono">-webkit-text-size-adjust: 100%</span> also stops iOS Safari from honouring the user’s text-size setting. HIG: use text styles so type scales.
+        </div>
+        <div class="finding">
+          <span class="pill near">Near</span>
+          <strong> One family for all sizes.</strong>
+          Stack is SF Pro Text. Headings ≥ 20pt should use SF Pro Display (automatic on a real iPhone with <span class="mono">UIFont.preferredFont</span>; on the web you need both in the stack).
+        </div>
+        <div class="finding">
+          <span class="pill miss">Miss</span>
+          <strong> Tracking is handmade.</strong>
+          Hero uses −0.035em (~−1.26pt at 36). HIG tracking for Display ~34pt is a small positive or near-zero value in Apple’s table, not a 3.5% squeeze. Section titles use a different tracking than the hero even when they should share a style.
+        </div>
+        <div class="finding">
+          <span class="pill near">Near</span>
+          <strong> All-caps meta.</strong>
+          <span class="mono">.recovery-data</span> and <span class="mono">.section-note</span> are 12pt uppercase + 0.04em. Current iOS grouped-list section headers are Footnote 13pt, sentence/title case, secondary colour. All-caps is a pre–iOS 15 pattern (and watchOS / Fitness sometimes still uses it).
+        </div>
+      </div>
+    </section>
+
+    <section id="space">
+      <h2>6. Spacing and padding</h2>
+      <p>Every padding and gap in the stylesheet, converted to pt, with the iOS convention beside it.</p>
+
+      <h3>Page and hero</h3>
+      <table>
+        <thead><tr><th>Selector</th><th>Padding / gap / min-height</th><th>pt</th><th>iOS convention</th><th>Verdict</th></tr></thead>
+        <tbody>
+          <tr>
+            <td class="mono">.dashboard-content</td>
+            <td>0 · 16 · max(40, safe-bottom)</td>
+            <td class="num">16 / 40</td>
+            <td>16 margin. Bottom 40 &gt; 34 home indicator. No tab bar, so OK.</td>
+            <td><span class="pill pass">Match</span></td>
+          </tr>
+          <tr>
+            <td class="mono">.season-intro</td>
+            <td>max(56, safe-top) · 16 · 32 · min-height 192</td>
+            <td class="num">56 / 16 / 32 / 192</td>
+            <td>Large-title screens often use ~96–120 to the first body line, not a 192 min-height. Extra space is a Fitness-style hero, not wrong, but it is a design choice not a system value.</td>
+            <td><span class="pill near">Near</span></td>
+          </tr>
+          <tr>
+            <td class="mono">.recovery-data</td>
+            <td>margin-top 16</td>
+            <td class="num">16</td>
+            <td>8–12 under a large title is more common; 16 still on-grid.</td>
+            <td><span class="pill near">Near</span></td>
+          </tr>
+          <tr>
+            <td class="mono">.recovery-summary</td>
+            <td>margin-top 8</td>
+            <td class="num">8</td>
+            <td>Related lines in a group: 8pt. Correct.</td>
+            <td><span class="pill pass">Match</span></td>
+          </tr>
+          <tr>
+            <td class="mono">.season-progress</td>
+            <td>pad 8 / 16 · min-height 48</td>
+            <td class="num">8 / 16 / 48</td>
+            <td>48 ≥ 44 hit height. Horizontal 16 keeps the label on the margin. Vertical 8 is tight if this were a control; as a display bar it is fine.</td>
+            <td><span class="pill pass">Match</span></td>
+          </tr>
+          <tr>
+            <td class="mono">.season-summary</td>
+            <td>16 / 16 / 32</td>
+            <td class="num">16 / 32</td>
+            <td>Block of body under a divider: 16 top is right. 32 bottom before the next section matches section spacing.</td>
+            <td><span class="pill pass">Match</span></td>
+          </tr>
+          <tr>
+            <td class="mono">.season-summary p + p</td>
+            <td>margin-top 16</td>
+            <td class="num">16</td>
+            <td>Paragraph spacing. Body leading is already 22; +16 between paras is a full blank line. iOS paragraphs in a Text stack more often use 8, or a single Text with line breaks.</td>
+            <td><span class="pill near">Near</span></td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>Sections and cards</h3>
+      <table>
+        <thead><tr><th>Selector</th><th>Spacing</th><th>pt</th><th>iOS convention</th><th>Verdict</th></tr></thead>
+        <tbody>
+          <tr>
+            <td class="mono">.section</td>
+            <td>padding-top 32</td>
+            <td class="num">32</td>
+            <td>Grouped sections ~24–35. 32 is the sweet spot.</td>
+            <td><span class="pill pass">Match</span></td>
+          </tr>
+          <tr>
+            <td class="mono">.section-heading</td>
+            <td>margin-bottom 16</td>
+            <td class="num">16</td>
+            <td>List section header to content is often 8. Fitness card headers often 12–16. Acceptable.</td>
+            <td><span class="pill pass">Match</span></td>
+          </tr>
+          <tr>
+            <td class="mono">.section-note</td>
+            <td>margin-top 8</td>
+            <td class="num">8</td>
+            <td>Title + subtitle pair. Correct.</td>
+            <td><span class="pill pass">Match</span></td>
+          </tr>
+          <tr>
+            <td class="mono">.goals-grid / .round-list</td>
+            <td>gap 16</td>
+            <td class="num">16</td>
+            <td>Widget grid spacing 8–16. 16 matches the page gutter (cards “rhyme” with the margin).</td>
+            <td><span class="pill pass">Match</span></td>
+          </tr>
+          <tr>
+            <td class="mono">.goal-card</td>
+            <td>pad 16 · gap 8 · min-height 128 · status 32×32</td>
+            <td class="num">16 / 8 / 128 / 32</td>
+            <td>Card inset 16 is standard. Status disc 32 is below 44pt if tappable. Internal 8 gap is correct for a tight cluster.</td>
+            <td><span class="pill near">Near</span></td>
+          </tr>
+          <tr>
+            <td class="mono">@media max-width 359px .goal-card</td>
+            <td>pad-inline 8 · status 24 · columns 24 + 1fr</td>
+            <td class="num">8 / 24</td>
+            <td>On a 320pt iPhone SE width this keeps the metric from wrapping. 8pt inner pad is tighter than system cards (~16) but on-grid.</td>
+            <td><span class="pill near">Near</span></td>
+          </tr>
+          <tr>
+            <td class="mono">.round-card</td>
+            <td>pad 16 · min-height 128</td>
+            <td class="num">16 / 128</td>
+            <td>16 pad matches. min-height 128 is a lot of empty vertical space for three short lines + a 24pt chip row. System rows hug content (~44–72) or use a richer cell. Feels padded, not illegal.</td>
+            <td><span class="pill near">Near</span></td>
+          </tr>
+          <tr>
+            <td class="mono">.round-course</td>
+            <td>margin-bottom 4</td>
+            <td class="num">4</td>
+            <td>Title to subtitle in a list cell is usually 0–4 (they share the 22pt body leading). Fine.</td>
+            <td><span class="pill pass">Match</span></td>
+          </tr>
+          <tr>
+            <td class="mono">.round-chips</td>
+            <td>margin-top 8 · gap 8</td>
+            <td class="num">8</td>
+            <td>Accessory row under text. Correct.</td>
+            <td><span class="pill pass">Match</span></td>
+          </tr>
+          <tr>
+            <td class="mono">.round-chip</td>
+            <td>min-height 24 · pad 4 / 8 · radius 7</td>
+            <td class="num">24 / 4 / 8 / 7</td>
+            <td>Display-only chips can be 24–28. If tappable, 44. Radius should be 8 (or fully rounded = half height = 12).</td>
+            <td><span class="pill miss">Miss</span> radius; <span class="pill near">Near</span> height</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>Spacing tree (pt)</h3>
+      <div class="tree">
+        <span class="ok">16</span> page gutter<br>
+        <span class="warn">56</span> intro top (safe area floor)<br>
+        &nbsp;&nbsp;h1<br>
+        &nbsp;&nbsp;<span class="ok">16</span> → meta<br>
+        &nbsp;&nbsp;<span class="ok">8</span> → summary line<br>
+        <span class="ok">32</span> intro bottom<br>
+        progress bar <span class="ok">48</span> tall, inner <span class="ok">8 / 16</span><br>
+        summary block <span class="ok">16</span> / paras <span class="warn">16</span> / bottom <span class="ok">32</span><br>
+        section gap <span class="ok">32</span><br>
+        heading → cards <span class="ok">16</span><br>
+        card pad <span class="ok">16</span> · inner gap <span class="ok">8</span> · grid gap <span class="ok">16</span><br>
+        page bottom <span class="ok">40</span>
+      </div>
+    </section>
+
+    <section id="components">
+      <h2>7. Component-by-component</h2>
+
+      <h3>Hero date</h3>
+      <p>
+        Behaves like an emphasized Large Title: bold, tight, first thing under the status bar.
+        Size 36 vs 34, leading 40 vs 41. Treat as <span class="pill near">Near</span>.
+        Mapping: <span class="mono">font: .largeTitle.bold()</span> → 34/41.
+      </p>
+
+      <h3>Weeks-left bar</h3>
+      <p>
+        Full-bleed stripe with 16pt text inset is an iOS pattern (Health highlights, lock-screen banners).
+        Type 18 Bold is not a style; use Headline 17 Semibold or Title 3 20.
+        Min-height 48 meets 44pt. <span class="pill near">Near</span>
+      </p>
+
+      <h3>Goal cards</h3>
+      <p>
+        Two-up metric tiles are Fitness, not Settings. Inner layout is a 2-column grid: 32pt disc + content.
+        Issues that are spatial, not visual taste:
+      </p>
+      <ul>
+        <li>Radius 30 is off-grid; <span class="mono">--radius-lg</span> is already 28 and used on round cards — two radii for the same elevation.</li>
+        <li>Metric at 36 / line-height 1 in a ~171pt column will wrap or overflow sooner than Title 1 28 would.</li>
+        <li>The 32pt disc is not a 44pt control. Fine if decorative; if it is a chevron/status control, enlarge the hit area without necessarily enlarging the drawing.</li>
+        <li>Support line (“L8yd”) sits 8pt under the metric. Good. It uses body 16 on a 1.12 line-height (18pt), which is denser than Subhead 15/20.</li>
+      </ul>
+
+      <h3>History rows</h3>
+      <p>
+        Each row is a 128pt-tall card. A system inset-grouped cell for this content would be roughly:
+        16 horizontal inset, ~11–14 continuous corner on the group (not each row if grouped),
+        ~8–12 vertical cell padding, Headline 17 + Subhead 15 + a 28pt capsule.
+        Here every row is an independent 28pt-radius card with 16pt padding and a large min-height, so the list feels airy and “custom app,” not UIKit.
+        Spatially consistent with the goal cards. <span class="pill near">Near</span> as a custom list.
+      </p>
+    </section>
+
+    <section id="map">
+      <h2>8. Suggested token map</h2>
+      <p>If the dashboard adopted HIG text styles and kept the 8pt space scale:</p>
+      <table>
+        <thead><tr><th>Role</th><th>Current</th><th>Map to</th><th>CSS at Large</th></tr></thead>
+        <tbody>
+          <tr><td>Screen title</td><td>36 / 700 / 1.12</td><td>Large Title emphasized</td><td class="mono">34px / 700 / 41px · SF Display</td></tr>
+          <tr><td>Section title</td><td>26 / 600</td><td>Title 1 emphasized or Title 2</td><td class="mono">28px / 700 / 34px  or  22px / 700 / 28px</td></tr>
+          <tr><td>Progress label</td><td>18 / 700</td><td>Headline</td><td class="mono">17px / 600 / 22px</td></tr>
+          <tr><td>Body copy</td><td>16 / 400 / 1.375</td><td>Body</td><td class="mono">17px / 400 / 22px</td></tr>
+          <tr><td>Card metric</td><td>36 / 600 / 1</td><td>Large Title or Title 1</td><td class="mono">34/41 or 28/34 — not 1.0 line-height</td></tr>
+          <tr><td>Card / row title</td><td>18 / 600</td><td>Headline or Title 3</td><td class="mono">17/22 600 or 20/25 600</td></tr>
+          <tr><td>Secondary line</td><td>15 / 400</td><td>Subhead</td><td class="mono">15px / 400 / 20px (keep)</td></tr>
+          <tr><td>Meta / chips</td><td>12 / 500–600 / caps</td><td>Caption 1 or Footnote</td><td class="mono">12/16 or 13/18 · drop forced caps</td></tr>
+          <tr><td>Page gutter</td><td>16</td><td>layout margin</td><td class="mono">keep 16; 20 at regular width</td></tr>
+          <tr><td>Section gap</td><td>32</td><td>major group</td><td class="mono">keep 32</td></tr>
+          <tr><td>Card pad / grid gap</td><td>16</td><td>content padding</td><td class="mono">keep 16</td></tr>
+          <tr><td>Goal radius</td><td>30</td><td>same as rounds</td><td class="mono">28</td></tr>
+          <tr><td>Chip radius</td><td>7</td><td>4pt grid</td><td class="mono">8 or 12 (pill)</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section id="fix">
+      <h2>9. What to change (priority)</h2>
+      <ol>
+        <li>
+          <strong>Put type on the HIG scale.</strong>
+          Replace the custom rem ladder with Large Title 34, Title 1/2 28 or 22, Body 17, Subhead 15, Caption 12.
+          That is the highest-leverage “feels like iOS” change. Nothing else in layout is as visible.
+        </li>
+        <li>
+          <strong>Use real leading, not 1.0 / 1.12 on display sizes.</strong>
+          Large Title wants 41pt leading. Metrics with <span class="mono">line-height: 1</span> will collide with the support line and clip.
+        </li>
+        <li>
+          <strong>Snap radii to the 4pt grid.</strong>
+          Goal cards 30 → 28 (share <span class="mono">--radius-lg</span>). Chips 7 → 8.
+        </li>
+        <li>
+          <strong>Stop blocking text-size adjustment.</strong>
+          Remove <span class="mono">-webkit-text-size-adjust: 100%</span> if this will be used on iPhone Safari, and prefer <span class="mono">px</span> that you treat as pt only at the default size — or switch to a small set of styles that can scale.
+        </li>
+        <li>
+          <strong>Keep the 16 / 8 / 32 space scale.</strong>
+          Do not invent 18, 20, or 13 padding. The spacing system is already the iOS one.
+        </li>
+        <li>
+          <strong>Optional tightness.</strong>
+          Reduce .round-card min-height so history rows hug content (~72–88 instead of 128) if you want list density closer to UIKit. Keep 128 if you want Fitness-tile density.
+        </li>
+        <li>
+          <strong>Only if this should be a real iPhone app layout:</strong>
+          drop the 390pt lock at regular width; use 16pt compact / 20pt regular margins and let cards grow.
+        </li>
+      </ol>
+
+      <h3>What already matches</h3>
+      <ul>
+        <li>16pt compact page margins</li>
+        <li>Safe-area aware top and bottom</li>
+        <li>Full-bleed background, inset content</li>
+        <li>8pt spacing tokens (8, 16, 24, 32, 40, 48)</li>
+        <li>2-column metric grid with 16pt gutter</li>
+        <li>32pt section breaks</li>
+        <li>16pt card padding</li>
+        <li>Subhead 15 and Caption 12 already on the type scale</li>
+        <li>System SF / Apple colour stack and grouped dark surfaces</li>
+      </ul>
+    </section>
+
+    <footer>
+      Audit of <span class="mono">index.html</span> against
+      <a href="https://developer.apple.com/design/human-interface-guidelines/layout">HIG Layout</a>
+      and
+      <a href="https://developer.apple.com/design/human-interface-guidelines/typography">HIG Typography</a>
+      (iOS Dynamic Type, size Large). Open this file at
+      <a href="http://localhost:8000/ios-layout-audit.html">localhost:8000/ios-layout-audit.html</a>
+      while the local server is running.
+    </footer>
+  </div>
+</body>
+</html>

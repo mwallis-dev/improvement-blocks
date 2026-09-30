@@ -1,0 +1,693 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="A personal golf season dashboard for goals, progress, and recent rounds.">
+  <title>My Golf Season</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --page: #090909;
+      --canvas: #000;
+      --surface: rgba(28, 28, 30, .55);
+      --surface-strong: rgba(34, 34, 36, .62);
+      --text: #f5f5f7;
+      --text-secondary: #d0cfd4;
+      --text-tertiary: #b8b7be;
+      --text-shadow: 0 1px 12px rgba(0, 0, 0, .55);
+      --line: rgba(255, 255, 255, .1);
+      --over-par: #9b2324;
+      --radius-lg: 28px;
+      --radius-md: 24px;
+      --space-1: 8px;
+      --space-2: 16px;
+      --space-3: 24px;
+      --space-4: 32px;
+      --space-5: 40px;
+      --space-6: 48px;
+      --page-pad: var(--space-2);
+      --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+      --font-display: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+      /* iOS Dynamic Type Large: 1px = 1pt at the default size */
+      --type-large-title: 34px;
+      --leading-large-title: 41px;
+      --type-title-1: 28px;
+      --leading-title-1: 34px;
+      --type-title-2: 22px;
+      --leading-title-2: 28px;
+      --type-body: 17px;
+      --leading-body: 22px;
+      --type-subhead: 15px;
+      --leading-subhead: 20px;
+      --type-caption: 12px;
+      --leading-caption: 16px;
+      font-family: var(--font-sans);
+      font-synthesis: none;
+    }
+
+    * { box-sizing: border-box; }
+    html { background: var(--page); }
+
+    body {
+      min-width: 320px;
+      min-height: 100svh;
+      margin: 0;
+      background: var(--page);
+      color: var(--text);
+      -webkit-font-smoothing: antialiased;
+      text-rendering: optimizeLegibility;
+    }
+
+    .page {
+      position: relative;
+      min-height: 100svh;
+    }
+
+    .top-shader {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 0;
+      width: min(100%, 390px);
+      height: 100svh;
+      height: 100dvh;
+      margin-inline: auto;
+      pointer-events: none;
+    }
+
+    .dashboard {
+      position: relative;
+      z-index: 1;
+      width: 100%;
+      max-width: 390px;
+      min-height: 100svh;
+      margin: 0 auto;
+      background: transparent;
+    }
+
+    .dashboard-content {
+      position: relative;
+      z-index: 1;
+      padding: 0 var(--page-pad) max(var(--space-5), env(safe-area-inset-bottom));
+    }
+
+    .hero {
+      --season-progress: 73%;
+      position: relative;
+      margin-inline: calc(var(--page-pad) * -1);
+      padding: 0;
+      border-bottom: 1px solid var(--line);
+      background: rgba(0, 0, 0, .18);
+    }
+
+    .season-intro {
+      min-height: calc(var(--space-6) * 4);
+      padding: max(calc(var(--space-6) + var(--space-1)), env(safe-area-inset-top)) var(--page-pad) var(--space-4);
+      background: transparent;
+    }
+
+    .hero-date {
+      margin: 0;
+      color: var(--text);
+      font-family: var(--font-display);
+      font-size: var(--type-large-title);
+      font-weight: 700;
+      letter-spacing: -.02em;
+      line-height: var(--leading-large-title);
+      text-shadow: var(--text-shadow);
+      text-wrap: balance;
+    }
+
+    .recovery-data {
+      margin: var(--space-2) 0 0;
+      color: var(--text-tertiary);
+      font-size: var(--type-caption);
+      font-weight: 500;
+      letter-spacing: .04em;
+      line-height: var(--leading-caption);
+      text-shadow: 0 1px 10px rgba(0, 0, 0, .5);
+      text-transform: uppercase;
+    }
+
+    .recovery-summary {
+      margin: var(--space-1) 0 0;
+      color: var(--text-secondary);
+      font-size: var(--type-subhead);
+      font-weight: 400;
+      letter-spacing: -.01em;
+      line-height: var(--leading-subhead);
+      text-shadow: 0 1px 10px rgba(0, 0, 0, .5);
+    }
+
+    .season-progress {
+      display: flex;
+      min-height: var(--space-6);
+      padding: var(--space-1) var(--page-pad);
+      align-items: center;
+      border-block: 1px solid rgba(255, 255, 255, .04);
+      background: linear-gradient(
+        to right,
+        rgba(255, 255, 255, .14) 0 var(--season-progress),
+        rgba(255, 255, 255, .07) var(--season-progress) 100%
+      );
+      -webkit-backdrop-filter: blur(12px) saturate(1.1);
+      backdrop-filter: blur(12px) saturate(1.1);
+    }
+
+    .season-progress h2 {
+      margin: 0;
+      color: var(--text);
+      font-family: var(--font-display);
+      font-size: var(--type-title-2);
+      font-weight: 700;
+      letter-spacing: -.02em;
+      line-height: var(--leading-title-2);
+      text-shadow: var(--text-shadow);
+    }
+
+    .season-summary {
+      padding: var(--space-2) var(--page-pad) var(--space-4);
+      background: transparent;
+    }
+
+    .season-summary p {
+      margin: 0;
+      color: var(--text-secondary);
+      font-size: var(--type-body);
+      font-weight: 400;
+      letter-spacing: -.01em;
+      line-height: var(--leading-body);
+      text-shadow: 0 1px 10px rgba(0, 0, 0, .5);
+      text-wrap: pretty;
+    }
+
+    .season-summary p + p { margin-top: var(--space-2); }
+    .section { padding-top: var(--space-4); }
+
+    .section-heading {
+      display: block;
+      margin-bottom: var(--space-2);
+    }
+
+    .section-title {
+      margin: 0;
+      font-family: var(--font-display);
+      font-size: var(--type-title-1);
+      font-weight: 700;
+      letter-spacing: -.02em;
+      line-height: var(--leading-title-1);
+      text-shadow: var(--text-shadow);
+      text-wrap: balance;
+    }
+
+    .section-note {
+      margin: var(--space-1) 0 0;
+      color: var(--text-tertiary);
+      font-size: var(--type-caption);
+      font-weight: 500;
+      letter-spacing: .04em;
+      line-height: var(--leading-caption);
+      text-shadow: 0 1px 10px rgba(0, 0, 0, .5);
+      text-transform: uppercase;
+    }
+
+    .goals-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: var(--space-2);
+    }
+
+    .goal-card {
+      display: grid;
+      grid-template-columns: var(--space-4) minmax(0, 1fr);
+      grid-template-rows: auto auto auto;
+      min-height: calc(var(--space-4) * 4);
+      padding: var(--space-2);
+      align-items: center;
+      align-content: center;
+      gap: var(--space-1);
+      border: 1px solid rgba(255, 255, 255, .1);
+      border-radius: var(--radius-lg);
+      background: linear-gradient(155deg, var(--surface-strong), var(--surface) 65%);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, .06);
+      -webkit-backdrop-filter: blur(18px) saturate(1.15);
+      backdrop-filter: blur(18px) saturate(1.15);
+    }
+
+    .goal-status {
+      grid-column: 1;
+      grid-row: 2;
+      display: grid;
+      width: var(--space-4);
+      aspect-ratio: 1;
+      place-items: center;
+      border-radius: 50%;
+      background: rgba(43, 43, 45, .72);
+    }
+
+    .goal-status svg {
+      width: 52%;
+      fill: none;
+      stroke: var(--text);
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      stroke-width: 2.8;
+    }
+
+    .goal-content { display: contents; }
+
+    .goal-content h3 {
+      grid-column: 2;
+      grid-row: 1;
+      min-width: 0;
+      margin: 0;
+      color: var(--text-secondary);
+      font-size: var(--type-subhead);
+      font-weight: 400;
+      letter-spacing: -.01em;
+      line-height: var(--leading-subhead);
+      white-space: normal;
+    }
+
+    .goal-metric {
+      grid-column: 2;
+      grid-row: 2;
+      display: flex;
+      align-items: baseline;
+      gap: 4px;
+      margin: 0;
+      color: var(--text);
+      font-family: var(--font-display);
+      font-size: var(--type-large-title);
+      font-weight: 700;
+      letter-spacing: -.02em;
+      line-height: var(--leading-large-title);
+      white-space: nowrap;
+    }
+
+    .goal-metric span {
+      margin-left: 0;
+      color: var(--text-secondary);
+      font-family: var(--font-sans);
+      font-size: var(--type-body);
+      font-weight: 400;
+      letter-spacing: -.01em;
+      line-height: var(--leading-body);
+    }
+
+    .goal-support {
+      grid-column: 2;
+      grid-row: 3;
+      min-width: 0;
+      margin: 0;
+      color: var(--text-secondary);
+      font-size: var(--type-subhead);
+      font-weight: 400;
+      letter-spacing: -.01em;
+      line-height: var(--leading-subhead);
+      white-space: normal;
+    }
+
+    .round-list {
+      display: grid;
+      gap: var(--space-2);
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .round-card {
+      display: grid;
+      min-height: calc(var(--space-4) * 4);
+      padding: var(--space-2);
+      align-items: center;
+      border: 1px solid rgba(255, 255, 255, .09);
+      border-radius: var(--radius-lg);
+      background: var(--surface);
+      -webkit-backdrop-filter: blur(18px) saturate(1.15);
+      backdrop-filter: blur(18px) saturate(1.15);
+    }
+
+    .round-course {
+      margin: 0 0 4px;
+      font-size: var(--type-body);
+      font-weight: 600;
+      letter-spacing: -.01em;
+      line-height: var(--leading-body);
+    }
+
+    .round-detail {
+      margin: 0;
+      color: var(--text-secondary);
+      font-size: var(--type-subhead);
+      font-weight: 400;
+      line-height: var(--leading-subhead);
+    }
+
+    .round-chips {
+      display: flex;
+      flex-wrap: wrap;
+      margin-top: var(--space-1);
+      align-items: center;
+      gap: var(--space-1);
+    }
+
+    .round-chip {
+      display: inline-flex;
+      min-height: var(--space-3);
+      padding: 4px var(--space-1);
+      align-items: center;
+      border-radius: var(--space-1);
+      background: rgba(53, 53, 56, .72);
+      color: #e4e3e8;
+      font-size: var(--type-caption);
+      font-weight: 600;
+      letter-spacing: -.01em;
+      line-height: var(--leading-caption);
+      white-space: nowrap;
+    }
+
+    .round-chip.score {
+      min-width: var(--space-4);
+      justify-content: center;
+      background: rgba(155, 35, 36, .86);
+      color: #fff4f3;
+      font-weight: 600;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; }
+    }
+
+    @media (max-width: 359px) {
+      .goal-card { grid-template-columns: var(--space-3) minmax(0, 1fr); padding-inline: var(--space-1); gap: var(--space-1); }
+      .goal-status { width: var(--space-3); }
+    }
+
+    @media (prefers-contrast: more) {
+      :root {
+        --text-secondary: #ecebef;
+        --text-tertiary: #d8d7de;
+        --line: rgba(255, 255, 255, .25);
+        --surface: rgba(28, 28, 30, .88);
+        --surface-strong: rgba(34, 34, 36, .92);
+      }
+      .goal-card, .round-card { border-color: var(--line); }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <canvas class="top-shader" aria-hidden="true"></canvas>
+    <main class="dashboard" id="dashboard">
+      <div class="dashboard-content">
+        <section class="hero" aria-labelledby="season-title">
+          <div class="season-intro">
+            <h1 class="hero-date" id="season-title"><span id="today-date">7 September</span></h1>
+            <p class="recovery-data">HRV 71&nbsp; · &nbsp;Resting HR 48&nbsp; · &nbsp;Sleep 7:30</p>
+            <p class="recovery-summary">Primed. The engine is rested, you can push it today.</p>
+          </div>
+          <div class="season-progress">
+            <h2 id="weeks-left">7 weeks left</h2>
+          </div>
+          <div class="season-summary">
+            <p id="weeks-summary">There are 7 weeks remaining in this season. That is still plenty of time to complete your goals.</p>
+            <p>You are in an improvement block focused on reducing left-to-right dispersion with a mid-iron. The goal is to bring left curve below 10 yards and finish no more than 10 yards offline, building the control needed to execute a reliable right-to-left draw.</p>
+          </div>
+        </section>
+
+        <section class="section goals" aria-labelledby="goals-title">
+          <div class="section-heading">
+            <h2 class="section-title" id="goals-title">Improvement block</h2>
+            <p class="section-note">Left-to-right dispersion with mid iron</p>
+          </div>
+          <div class="goals-grid">
+            <article class="goal-card">
+              <span class="goal-status" aria-hidden="true">
+                <svg viewBox="0 0 24 24"><path d="m4 8 8 8 8-8"/></svg>
+              </span>
+              <div class="goal-content">
+                <h3>Avg Curve</h3>
+                <p class="goal-metric">L11<span>yd</span></p>
+              </div>
+              <p class="goal-support">L8yd</p>
+            </article>
+            <article class="goal-card">
+              <span class="goal-status" aria-hidden="true">
+                <svg viewBox="0 0 24 24"><path d="m4 8 8 8 8-8"/></svg>
+              </span>
+              <div class="goal-content">
+                <h3>Avg Offline</h3>
+                <p class="goal-metric">L8<span>yd</span></p>
+              </div>
+              <p class="goal-support">L8yd</p>
+            </article>
+          </div>
+        </section>
+
+        <section class="section history" aria-labelledby="history-title">
+          <div class="section-heading">
+            <h2 class="section-title" id="history-title">F.I.G. Golf History</h2>
+            <p class="section-note">3 rounds total</p>
+          </div>
+          <ol class="round-list">
+            <li class="round-card">
+              <div>
+                <h3 class="round-course">Deer Park</h3>
+                <p class="round-detail">Tuesday, 1 Sep</p>
+                <div class="round-chips"><span class="round-chip">10 Holes&nbsp; · &nbsp;2:36</span><span class="round-chip score">+3</span></div>
+              </div>
+            </li>
+            <li class="round-card">
+              <div>
+                <h3 class="round-course">Deer Park</h3>
+                <p class="round-detail">Tuesday, 1 Sep</p>
+                <div class="round-chips"><span class="round-chip">10 Holes&nbsp; · &nbsp;2:36</span><span class="round-chip score">+3</span></div>
+              </div>
+            </li>
+            <li class="round-card">
+              <div>
+                <h3 class="round-course">Deer Park</h3>
+                <p class="round-detail">Tuesday, 1 Sep</p>
+                <div class="round-chips"><span class="round-chip">10 Holes&nbsp; · &nbsp;2:36</span><span class="round-chip score">+3</span></div>
+              </div>
+            </li>
+          </ol>
+        </section>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    function updateSeason() {
+      const now = new Date();
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const seasonStart = new Date(today.getFullYear(), 3, 1);
+      const seasonEnd = new Date(today.getFullYear(), 9, 31);
+      const day = 24 * 60 * 60 * 1000;
+      const totalDays = (seasonEnd - seasonStart) / day;
+      const remainingDays = Math.max(0, Math.min(totalDays, (seasonEnd - today) / day));
+      const remainingWeeks = remainingDays / 7;
+      const elapsedDays = Math.max(0, Math.min(totalDays, (today - seasonStart) / day));
+      const seasonProgress = Math.round((elapsedDays / totalDays) * 100);
+      const wholeWeeks = Math.floor(remainingWeeks);
+      const weekWord = wholeWeeks === 1 ? 'week' : 'weeks';
+      const dateLabel = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'long' }).format(today);
+
+      document.querySelector('#today-date').textContent = dateLabel;
+      document.querySelector('.hero').style.setProperty('--season-progress', `${seasonProgress}%`);
+      document.querySelector('#weeks-left').textContent = `${wholeWeeks} ${weekWord} left`;
+      document.querySelector('#weeks-summary').textContent = `There ${wholeWeeks === 1 ? 'is' : 'are'} ${wholeWeeks} ${weekWord} remaining in this season. That is still plenty of time to complete your goals.`;
+    }
+
+    updateSeason();
+
+    function initTopShader() {
+      const canvas = document.querySelector('.top-shader');
+      const gl = canvas.getContext('webgl', {
+        alpha: false,
+        antialias: false,
+        powerPreference: 'low-power'
+      });
+
+      if (!gl) return;
+
+      const vertexSource = `
+        attribute vec2 a_position;
+        void main() {
+          gl_Position = vec4(a_position, 0.0, 1.0);
+        }
+      `;
+
+      const fragmentSource = `
+        precision highp float;
+
+        uniform vec2 u_resolution;
+        uniform float u_time;
+
+        float random(vec2 point) {
+          return fract(sin(dot(point, vec2(127.1, 311.7))) * 43758.5453123);
+        }
+
+        float noise(vec2 point) {
+          vec2 cell = floor(point);
+          vec2 local = fract(point);
+          local = local * local * (3.0 - 2.0 * local);
+
+          float a = random(cell);
+          float b = random(cell + vec2(1.0, 0.0));
+          float c = random(cell + vec2(0.0, 1.0));
+          float d = random(cell + vec2(1.0, 1.0));
+
+          return mix(mix(a, b, local.x), mix(c, d, local.x), local.y);
+        }
+
+        float fbm(vec2 point) {
+          float value = 0.0;
+          float amplitude = 0.5;
+
+          for (int octave = 0; octave < 5; octave++) {
+            value += amplitude * noise(point);
+            point = point * 2.03 + vec2(17.1, 9.2);
+            amplitude *= 0.5;
+          }
+
+          return value;
+        }
+
+        void main() {
+          vec2 uv = gl_FragCoord.xy / u_resolution.xy;
+          float aspect = u_resolution.x / u_resolution.y;
+
+          float flowScale = 5.4;
+          float flowStrength = 1.28;
+          float streakStrength = 0.28;
+          float softness = 0.7;
+          float glowDepth = 0.90;
+          float darkness = 1.0;
+          float brightness = 0.46 + sin(u_time * 0.37) * 0.04;
+
+          vec2 flowPoint = vec2(uv.x * aspect, uv.y * 0.58) * flowScale;
+          flowPoint += vec2(sin(u_time * 0.13), cos(u_time * 0.09)) * 0.22;
+
+          float warpA = fbm(flowPoint + vec2(u_time * 0.16, u_time * 0.055));
+          float warpB = fbm(flowPoint * 0.72 + vec2(-u_time * 0.12, u_time * 0.04 + 3.7));
+          float warpC = fbm(flowPoint * 1.35 + vec2(u_time * -0.08, -u_time * 0.11));
+          vec2 warped = flowPoint + (vec2(warpA, warpB) - 0.5) * flowStrength * 2.15;
+          warped += (vec2(warpC, warpA) - 0.5) * flowStrength * 0.85;
+
+          float mist = fbm(warped + vec2(u_time * 0.05, u_time * 0.09));
+          float mistFine = fbm(warped * 1.8 + vec2(-u_time * 0.14, u_time * 0.06));
+          mist = mix(mist, mistFine, 0.38);
+
+          float curtainNoise = fbm(vec2(uv.x * 4.2 * aspect + u_time * 0.14, uv.y * 0.28 + u_time * 0.03));
+          float curtains = smoothstep(0.29, 0.76, curtainNoise) * streakStrength;
+
+          float movingX = 0.50 + sin(u_time * 0.31) * 0.11 + sin(u_time * 0.17) * 0.04;
+          float movingLeft = 0.20 + cos(u_time * 0.21) * 0.05;
+          float rightGlow = exp(-pow((uv.x - movingX) * aspect / (softness * 0.34), 2.0));
+          float leftGlow = exp(-pow((uv.x - movingLeft) * aspect / (softness * 0.45), 2.0)) * 0.55;
+          float broadLight = 0.22 + rightGlow * 0.72 + leftGlow * 0.85;
+
+          float fromTop = 1.0 - uv.y;
+          float depthReach = mix(0.78, 1.12, glowDepth);
+          float topFalloff = 1.0 - smoothstep(depthReach * 0.55, depthReach, fromTop);
+          topFalloff = pow(max(topFalloff, 0.0), mix(1.35, 0.7, softness / 2.0));
+
+          float texture = mix(0.46, 1.08, mist) + curtains * 0.32;
+          float light = topFalloff * broadLight * texture * brightness;
+          vec3 base = vec3(0.012, 0.016, 0.018) * (1.0 - darkness * 0.55);
+          vec3 cyan = vec3(0.02, 0.48, 0.72);
+          vec3 red = vec3(0.52, 0.06, 0.05);
+          float colourShift = 0.5 + 0.5 * sin(u_time * 0.19 + mist * 2.4);
+          float mixAmount = clamp(rightGlow * 0.42 + mist * 0.22 + colourShift * 0.12, 0.0, 1.0);
+          vec3 atmosphere = mix(cyan, red, mixAmount);
+          vec3 colour = base + atmosphere * light;
+
+          float edge = smoothstep(0.92, 0.16, distance(uv, vec2(0.52, 0.28)) * 0.52);
+          colour *= mix(0.82, 1.0, edge);
+          colour *= 1.0 - darkness * (1.0 - topFalloff) * 0.38;
+          colour = mix(colour, vec3(0.02, 0.025, 0.03), 0.18);
+
+          float grain = random(gl_FragCoord.xy + floor(u_time * 18.0)) - 0.5;
+          colour += grain * 0.012;
+
+          gl_FragColor = vec4(colour, 1.0);
+        }
+      `;
+
+      function compileShader(type, source) {
+        const shader = gl.createShader(type);
+        gl.shaderSource(shader, source);
+        gl.compileShader(shader);
+
+        if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+          throw new Error(gl.getShaderInfoLog(shader));
+        }
+
+        return shader;
+      }
+
+      const program = gl.createProgram();
+
+      try {
+        gl.attachShader(program, compileShader(gl.VERTEX_SHADER, vertexSource));
+        gl.attachShader(program, compileShader(gl.FRAGMENT_SHADER, fragmentSource));
+        gl.linkProgram(program);
+
+        if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+          throw new Error(gl.getProgramInfoLog(program));
+        }
+      } catch (error) {
+        console.error(error);
+        return;
+      }
+
+      gl.useProgram(program);
+
+      const buffer = gl.createBuffer();
+      gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+      gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([
+        -1, -1,  1, -1, -1,  1,
+        -1,  1,  1, -1,  1,  1
+      ]), gl.STATIC_DRAW);
+
+      const positionLocation = gl.getAttribLocation(program, 'a_position');
+      gl.enableVertexAttribArray(positionLocation);
+      gl.vertexAttribPointer(positionLocation, 2, gl.FLOAT, false, 0, 0);
+
+      const resolutionLocation = gl.getUniformLocation(program, 'u_resolution');
+      const timeLocation = gl.getUniformLocation(program, 'u_time');
+      const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+
+      function resizeCanvas() {
+        const pixelRatio = Math.min(window.devicePixelRatio, 2);
+        const width = Math.round(canvas.clientWidth * pixelRatio);
+        const height = Math.round(canvas.clientHeight * pixelRatio);
+
+        if (canvas.width !== width || canvas.height !== height) {
+          canvas.width = width;
+          canvas.height = height;
+          gl.viewport(0, 0, width, height);
+        }
+      }
+
+      function draw(milliseconds) {
+        resizeCanvas();
+        gl.uniform2f(resolutionLocation, canvas.width, canvas.height);
+        gl.uniform1f(timeLocation, reduceMotion.matches ? 0 : milliseconds * 0.001);
+        gl.drawArrays(gl.TRIANGLES, 0, 6);
+
+        if (!reduceMotion.matches) requestAnimationFrame(draw);
+      }
+
+      requestAnimationFrame(draw);
+      reduceMotion.addEventListener('change', () => requestAnimationFrame(draw));
+    }
+
+    initTopShader();
+  </script>
+</body>
+</html>
